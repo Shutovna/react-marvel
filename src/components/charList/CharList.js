@@ -1,88 +1,134 @@
+import {useState, useEffect, useRef} from 'react';
+import PropTypes from 'prop-types';
+
+import Spinner from '../spinner/Spinner';
+import ErrorMessage from '../errorMessage/ErrorMessage';
+import MarvelService from '../../services/MarvelService';
 import './charList.scss';
-import abyss from '../../resources/img/abyss.jpg';
-import MarvelService from "../../services/MarvelService";
-import {Component} from "react";
-import ErrorMessage from "../errorMessage/ErrorMessage";
-import Spinner from "../spinner/Spinner";
 
-class CharList extends Component {
+const CharList = (props) => {
+    const [charList, setCharList] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(false);
+    const [newItemLoading, setNewItemLoading] = useState(false);
+    const [offset, setOffset] = useState(210);
+    const [charEnded, setCharEnded] = useState(false);
+
+    const marvelService = new MarvelService();
+
+    useEffect(() => {
+        onRequest();
+    }, []);
 
 
-    constructor(props, context) {
-        super(props, context);
-        this.state = {
-            chars: [],
-            loading: true,
-            error: false
+    const onRequest = (offset) => {
+        onCharListLoading();
+        marvelService.getAllCharacters(offset)
+            .then(onCharListLoaded)
+            .catch(onError)
+    }
+
+    const onCharListLoading = () => {
+        setNewItemLoading(true);
+    }
+
+    const onCharListLoaded = (newCharList) => {
+        let ended = false;
+        if (newCharList.length < 9) {
+            ended = true;
         }
+
+
+        setCharList(charList => [...charList, ...newCharList])
+        setLoading(false);
+        setNewItemLoading(false)
+        setOffset(offset => offset + 9);
+        setCharEnded(ended);
     }
 
-
-    componentDidMount() {
-        this.loadChars();
+    const onError = () => {
+        setError(true);
+        setLoading(false);
     }
 
-    onError = () => {
-        this.setState({
-            loading: false,
-            error: true
-        })
+    const itemRefs = useRef([]);
+
+    const focusOnItem = (id) => {
+        // Я реализовал вариант чуть сложнее, и с классом и с фокусом
+        // Но в теории можно оставить только фокус, и его в стилях использовать вместо класса
+        // На самом деле, решение с css-классом можно сделать, вынеся персонажа
+        // в отдельный компонент. Но кода будет больше, появится новое состояние
+        // и не факт, что мы выиграем по оптимизации за счет бОльшего кол-ва элементов
+
+        // По возможности, не злоупотребляйте рефами, только в крайних случаях
+        itemRefs.current.forEach(item => item.classList.remove('char__item_selected'));
+        itemRefs.current[id].classList.add('char__item_selected');
+        itemRefs.current[id].focus();
     }
 
-    onCharsLoaded = (chars) => {
-        this.setState({
-            loading: false,
-            chars: chars
-        })
-    }
+    // Этот метод создан для оптимизации,
+    // чтобы не помещать такую конструкцию в метод render
+    const renderItems = (arr) => {
+        const items = arr.map((item, i) => {
+            let imgStyle = {'objectFit': 'cover'};
+            if (item.thumbnail === 'http://i.annihil.us/u/prod/marvel/i/mg/b/40/image_not_available.jpg') {
+                imgStyle = {'objectFit': 'unset'};
+            }
 
-    loadChars = () => {
-        const marvelService = new MarvelService();
-
-        marvelService.getAllCharacters()
-            .then(this.onCharsLoaded)
-            .catch(this.onError);
-    }
-
-    render() {
-        const {chars, loading, error} = this.state;
-        const errorMessage = error ? <ErrorMessage/> : null;
-        const spinner = loading ? <Spinner/> : null;
-        const content = !(loading || error) ?
-            <ul className="char__grid">
-                {chars.map(item => <View char={item}/>)}
-            </ul> : null;
-
-
+            return (
+                <li
+                    className="char__item"
+                    tabIndex={0}
+                    ref={item => itemRefs.current[i] = item}
+                    key={item.id}
+                    onClick={() => {
+                        props.onCharSelected(item.id);
+                        focusOnItem(i);
+                    }}
+                    onKeyPress={(e) => {
+                        if (e.key === ' ' || e.key === "Enter") {
+                            props.onCharSelected(item.id);
+                            focusOnItem(i);
+                        }
+                    }}>
+                    <img src={item.thumbnail} alt={item.name} style={imgStyle}/>
+                    <div className="char__name">{item.name}</div>
+                </li>
+            )
+        });
+        // А эта конструкция вынесена для центровки спиннера/ошибки
         return (
-            <div className="char__list">
-                {errorMessage}
-                {spinner}
-                {content}
-                <button className="button button__main button__long">
-                    <div className="inner">load more</div>
-                </button>
-            </div>
+            <ul className="char__grid">
+                {items}
+            </ul>
         )
     }
-}
 
-const View = ({char}) => {
-    const {name, thumbnail} = char;
-    let imgStyle;
-    if (thumbnail.indexOf("image_not_available") > -1) {
-        imgStyle = {objectFit: "contain"}
-    }
+    const items = renderItems(charList);
+
+    const errorMessage = error ? <ErrorMessage/> : null;
+    const spinner = loading ? <Spinner/> : null;
+    const content = !(loading || error) ? items : null;
 
     return (
-        <li className="char__item">
-            <img src={thumbnail} alt="character" style={imgStyle}/>
-            <div className="char__name">{name}</div>
-        </li>
+        <div className="char__list">
+            {errorMessage}
+            {spinner}
+            {content}
+            <button
+                className="button button__main button__long"
+                disabled={newItemLoading}
+                style={{'display': charEnded ? 'none' : 'block'}}
+                onClick={() => onRequest(offset)}>
+                <div className="inner">load more</div>
+            </button>
+        </div>
     )
-
 
 }
 
+CharList.propTypes = {
+    onCharSelected: PropTypes.func.isRequired
+}
 
 export default CharList;

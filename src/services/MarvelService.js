@@ -2,6 +2,7 @@ const CryptoJS = require('crypto-js');
 
 class MarvelService {
     _apiBase = "https://gateway.marvel.com:443/v1/public"
+    _baseOffset = 210;
     getResource = async (url) => {
         console.log("getResource " + url);
         let res = await fetch(url);
@@ -13,9 +14,8 @@ class MarvelService {
         return await res.json();
     }
 
-    getAllCharacters = async () => {
+    getAllCharacters = async (offset = this._baseOffset) => {
         const limit = 9;
-        const offset = 210;
         let url = `${this._apiBase}/characters?limit=${limit}&offset=${offset}` +
             `&${this.getAuthQueryString()}`;
 
@@ -32,12 +32,14 @@ class MarvelService {
 
     _transformCharacter = (char) => {
         return {
+            id: char.id,
             name: char.name,
             description: char.description,
             thumbnail: char.thumbnail.path + "."
                 + char.thumbnail.extension,
             homepage: char.urls[0].url,
-            wiki: char.urls[1].url
+            wiki: char.urls[1].url,
+            comics: char.comics.items
         }
     }
 
@@ -56,9 +58,7 @@ class MarvelService {
         const hash = CryptoJS.MD5(hashString).toString();
 
         // Вывод хэша и других параметров
-        let data = `ts=${timestamp}&apikey=${publicKey}&hash=${hash}`;
-        console.log("AuthQueryString=" + data);
-        return data;
+        return `ts=${timestamp}&apikey=${publicKey}&hash=${hash}`;
     }
 
 }
