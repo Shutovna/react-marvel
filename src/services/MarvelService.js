@@ -1,36 +1,42 @@
+import {useHttp} from "../hooks/http.hooks";
+
 const CryptoJS = require('crypto-js');
 
-class MarvelService {
-    _apiBase = "https://gateway.marvel.com:443/v1/public"
-    _baseOffset = 210;
-    getResource = async (url) => {
-        console.log("getResource " + url);
-        let res = await fetch(url);
 
-        if (!res.ok) {
-            throw new Error(`Could not fetch ${url}, status: ${res.status}`);
-        }
+const useMarvelService = () => {
+    const {loading, request, error, clearError} = useHttp();
 
-        return await res.json();
-    }
+    const _apiBase = "https://gateway.marvel.com:443/v1/public"
+    const _baseOffset = 210;
 
-    getAllCharacters = async (offset = this._baseOffset) => {
+
+    const getAllCharacters = async (offset = _baseOffset) => {
         const limit = 9;
-        let url = `${this._apiBase}/characters?limit=${limit}&offset=${offset}` +
-            `&${this.getAuthQueryString()}`;
+        let url = `${_apiBase}/characters?limit=${limit}&offset=${offset}` +
+            `&${getAuthQueryString()}`;
 
-        let res = await this.getResource(url);
-        return res.data.results.map(this._transformCharacter);
+        let res = await request(url);
+        return res.data.results.map(_transformCharacter);
     }
 
-    getCharacter = async (id) => {
-        let url = `${this._apiBase}/characters/${id}?` +
-            `&${this.getAuthQueryString()}`;
-        let res = await this.getResource(url);
-        return this._transformCharacter(res.data.results[0]);
+    const getCharacter = async (id) => {
+        let url = `${_apiBase}/characters/${id}?` +
+            `&${getAuthQueryString()}`;
+        let res = await request(url);
+        return _transformCharacter(res.data.results[0]);
     }
 
-    _transformCharacter = (char) => {
+    const getAllComics = async (offset = _baseOffset) => {
+        const limit = 9;
+        let url = `${_apiBase}/comics?limit=${limit}&offset=${offset}` +
+            `&${getAuthQueryString()}`;
+
+        let res = await request(url);
+        return res.data.results.map(_transformComic);
+    }
+
+
+    const _transformCharacter = (char) => {
         return {
             id: char.id,
             name: char.name,
@@ -43,7 +49,18 @@ class MarvelService {
         }
     }
 
-    getAuthQueryString = () => {
+    const _transformComic = (comic) => {
+        return {
+            id: comic.id,
+            title: comic.title,
+            description: comic.description,
+            thumbnail: comic.thumbnail.path + "."
+                + comic.thumbnail.extension,
+            price: comic.prices[0].price,
+        }
+    }
+
+    const getAuthQueryString = () => {
         // Импортируйте библиотеку crypto-js
 
         // Ваши ключи и временная метка
@@ -61,6 +78,8 @@ class MarvelService {
         return `ts=${timestamp}&apikey=${publicKey}&hash=${hash}`;
     }
 
+    return {loading, error, getAllCharacters, getCharacter, getAllComics, clearError};
+
 }
 
-export default MarvelService;
+export default useMarvelService;

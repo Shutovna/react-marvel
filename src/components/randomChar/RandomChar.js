@@ -1,58 +1,45 @@
-import {useState} from "react";
+import {useState, useEffect} from 'react';
+import Spinner from '../spinner/Spinner';
+import ErrorMessage from '../errorMessage/ErrorMessage';
+import useMarvelService from '../../services/MarvelService';
+
 import './randomChar.scss';
 import mjolnir from '../../resources/img/mjolnir.png';
-import MarvelService from "../../services/MarvelService";
-import Spinner from "../spinner/Spinner";
-import ErrorMessage from "../errorMessage/ErrorMessage";
 
-const RandomChar = (props) => {
+const RandomChar = () => {
 
-    const [char, setChar] = useState({});
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(false);
+    const [char, setChar] = useState(null);
+    const {loading, error, getCharacter, clearError} = useMarvelService();
 
-    const marvelService = new MarvelService();
+    useEffect(() => {
+        updateChar();
+        const timerId = setInterval(updateChar, 60000);
 
-    const onError = () => {
-        setLoading(false);
-        setError(true);
-    }
+        return () => {
+            clearInterval(timerId)
+        }
+    }, [])
 
     const onCharLoaded = (char) => {
-        setLoading(false)
         setChar(char);
     }
 
-    const onCharLoading = () => {
-       setLoading(true);
-    }
-
     const updateChar = () => {
-        const id = Math.floor(Math.random() * (1011400 - 1011000) + 1011000);
-        marvelService
-            .getCharacter(id)
-            .then(onCharLoaded)
-            .catch(onError);
-
+        clearError();
+        const id = Math.floor(Math.random() * (1011400 - 1011000)) + 1011000;
+        getCharacter(id)
+            .then(onCharLoaded);
     }
-
-    const tryNewChar = () => {
-        console.log("tryNewChar")
-        onCharLoading();
-        updateChar();
-    }
-
 
     const errorMessage = error ? <ErrorMessage/> : null;
     const spinner = loading ? <Spinner/> : null;
-    const content = !(loading || error) ? <View char={char}/> : null;
+    const content = !(loading || error || !char) ? <View char={char} /> : null;
 
-    return (<div className="randomchar">
-
+    return (
+        <div className="randomchar">
             {errorMessage}
             {spinner}
             {content}
-
             <div className="randomchar__static">
                 <p className="randomchar__title">
                     Random character for today!<br/>
@@ -61,44 +48,33 @@ const RandomChar = (props) => {
                 <p className="randomchar__title">
                     Or choose another one
                 </p>
-                <button onClick={tryNewChar} className="button button__main">
+                <button onClick={updateChar} className="button button__main">
                     <div className="inner">try it</div>
                 </button>
                 <img src={mjolnir} alt="mjolnir" className="randomchar__decoration"/>
             </div>
         </div>
     )
-
 }
-
 
 const View = ({char}) => {
     const {name, description, thumbnail, homepage, wiki} = char;
-    let imgStyle;
-    if (thumbnail.indexOf("image_not_available") > -1) {
-        imgStyle = {objectFit: "contain"}
-    }
-
-    const getDescription = (desc) => {
-        if (!desc || desc.length === 0) {
-            return "Information is not available";
-        }
-        if (desc.length > 245) {
-            return desc.slice(0, 330) + "...";
-        }
+    let imgStyle = {'objectFit' : 'cover'};
+    if (thumbnail === 'http://i.annihil.us/u/prod/marvel/i/mg/b/40/image_not_available.jpg') {
+        imgStyle = {'objectFit' : 'contain'};
     }
 
     return (
         <div className="randomchar__block">
-            <img src={thumbnail} style={imgStyle} alt="Random character" className="randomchar__img"/>
+            <img src={thumbnail} alt="Random character" className="randomchar__img" style={imgStyle}/>
             <div className="randomchar__info">
                 <p className="randomchar__name">{name}</p>
                 <p className="randomchar__descr">
-                    {getDescription(description)}
+                    {description}
                 </p>
                 <div className="randomchar__btns">
                     <a href={homepage} className="button button__main">
-                        <div className="inner">Homepage</div>
+                        <div className="inner">homepage</div>
                     </a>
                     <a href={wiki} className="button button__secondary">
                         <div className="inner">Wiki</div>
@@ -107,8 +83,6 @@ const View = ({char}) => {
             </div>
         </div>
     )
-
-
 }
 
 export default RandomChar;
