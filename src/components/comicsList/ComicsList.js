@@ -1,11 +1,9 @@
 import './comicsList.scss';
-import uw from '../../resources/img/UW.png';
-import xMen from '../../resources/img/x-men.png';
 import {useEffect, useRef, useState} from "react";
+import {Link} from "react-router-dom";
 import useMarvelService from "../../services/MarvelService";
 import ErrorMessage from "../errorMessage/ErrorMessage";
 import Spinner from "../spinner/Spinner";
-import PropTypes from "prop-types";
 
 const ComicsList = () => {
     const [comicsList, setComicsList] = useState([]);
@@ -69,11 +67,11 @@ const ComicsList = () => {
                     ref={item => itemRefs.current[i] = item}
                     key={item.id}
                 >
-                    <a href="#">
+                    <Link to={`/comics/${item.id}`}>
                         <img src={item.thumbnail} alt={item.name} style={imgStyle} className="comics__item-img"/>
                         <div className="comics__item-name">{item.name}</div>
                         <div className="comics__item-price">{item.price}</div>
-                    </a>
+                    </Link>
                 </li>
             )
         });
@@ -105,10 +103,6 @@ const ComicsList = () => {
         </div>
     )
 
-}
-
-ComicsList.propTypes = {
-    onComicsSelected: PropTypes.func.isRequired
 }
 
 
